@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from '@/hooks/use-toast';
-import { Plus, Edit, Trash2 } from 'lucide-react';
+import { Plus, Edit, Trash2, Clock } from 'lucide-react';
 
 interface AttendanceType {
   id: string;
@@ -143,74 +143,87 @@ export default function AdminAttendanceTypes() {
         </Dialog>
       </div>
 
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {types.map((type) => (
-          <Card key={type.id} className="shadow-card">
-            <CardHeader>
-              <CardTitle>{type.name}</CardTitle>
-              <CardDescription>{type.duration} minutos</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex gap-2">
-                <Dialog>
-                  <DialogTrigger asChild>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="flex-1"
-                      onClick={() => setEditingType(type)}
-                    >
-                      <Edit className="mr-2 h-4 w-4" />
-                      Editar
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Editar Tipo de Atendimento</DialogTitle>
-                      <DialogDescription>Altere os dados do tipo</DialogDescription>
-                    </DialogHeader>
-                    {editingType && (
-                      <div className="space-y-4">
-                        <div className="space-y-2">
-                          <Label>Nome do Tipo</Label>
-                          <Input
-                            value={editingType.name}
-                            onChange={(e) =>
-                              setEditingType({ ...editingType, name: e.target.value })
-                            }
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label>Duração (minutos)</Label>
-                          <Input
-                            type="number"
-                            value={editingType.duration}
-                            onChange={(e) =>
-                              setEditingType({
-                                ...editingType,
-                                duration: parseInt(e.target.value)
-                              })
-                            }
-                          />
-                        </div>
-                        <Button onClick={updateType} className="w-full bg-blue-900 text-white hover:bg-blue-800">
-                          Salvar Alterações
+      <div className="rounded-md border">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Nome</TableHead>
+              <TableHead>Duração</TableHead>
+              <TableHead className="text-right">Ações</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {types.map((type) => (
+              <TableRow key={type.id}>
+                <TableCell className="font-medium">{type.name}</TableCell>
+                <TableCell>
+                  <div className="flex items-center gap-1 text-muted-foreground">
+                    <Clock className="h-4 w-4" />
+                    {type.duration} minutos
+                  </div>
+                </TableCell>
+                <TableCell className="text-right">
+                  <div className="flex justify-end gap-2">
+                    <Dialog>
+                      <DialogTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setEditingType(type)}
+                        >
+                          <Edit className="mr-2 h-4 w-4" />
+                          Editar
                         </Button>
-                      </div>
-                    )}
-                  </DialogContent>
-                </Dialog>
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={() => deleteType(type.id)}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+                      </DialogTrigger>
+                      <DialogContent>
+                        <DialogHeader>
+                          <DialogTitle>Editar Tipo de Atendimento</DialogTitle>
+                          <DialogDescription>Altere os dados do tipo</DialogDescription>
+                        </DialogHeader>
+                        {editingType && (
+                          <div className="space-y-4">
+                            <div className="space-y-2">
+                              <Label>Nome do Tipo</Label>
+                              <Input
+                                value={editingType.name}
+                                onChange={(e) =>
+                                  setEditingType({ ...editingType, name: e.target.value })
+                                }
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Duração (minutos)</Label>
+                              <Input
+                                type="number"
+                                value={editingType.duration}
+                                onChange={(e) =>
+                                  setEditingType({
+                                    ...editingType,
+                                    duration: parseInt(e.target.value)
+                                  })
+                                }
+                              />
+                            </div>
+                            <Button onClick={updateType} className="w-full bg-blue-900 text-white hover:bg-blue-800">
+                              Salvar Alterações
+                            </Button>
+                          </div>
+                        )}
+                      </DialogContent>
+                    </Dialog>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => deleteType(type.id)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
       </div>
     </div>
   );

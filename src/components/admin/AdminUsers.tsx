@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from '@/hooks/use-toast';
 import { Trash2, UserCircle } from 'lucide-react';
 import {
@@ -71,63 +71,75 @@ export default function AdminUsers() {
         <p className="text-muted-foreground">Gerencie os usuários do sistema</p>
       </div>
 
-      <div className="grid md:grid-cols-2 gap-4">
-        {users.map((user) => (
-          <Card key={user.id} className="shadow-card">
-            <CardContent className="pt-6">
-              <div className="flex items-start justify-between">
-                <div className="flex items-start gap-3">
-                  <div className="w-12 h-12 rounded-full bg-blue-900/10 flex items-center justify-center">
-                    <UserCircle className="w-6 h-6 text-blue-900" />
+      <div className="rounded-md border">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Usuário</TableHead>
+              <TableHead>E-mail</TableHead>
+              <TableHead>Tipo</TableHead>
+              <TableHead className="text-right">Ações</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {users.map((user) => (
+              <TableRow key={user.id}>
+                <TableCell>
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-blue-900/10 flex items-center justify-center">
+                      <UserCircle className="w-5 h-5 text-blue-900" />
+                    </div>
+                    <span className="font-medium">{user.name}</span>
                   </div>
-                  <div>
-                    <h3 className="font-semibold text-foreground">{user.name}</h3>
-                    <p className="text-sm text-muted-foreground">{user.email}</p>
-                    <Badge
-                      className={`mt-2 ${
-                        user.type === 'admin'
-                          ? 'bg-blue-900 text-white hover:bg-blue-800'
-                          : 'bg-gray-200 text-gray-800'
-                      }`}
-                    >
-                      {user.type === 'admin' ? 'Administrador' : 'Usuário'}
-                    </Badge>
-                  </div>
-                </div>
-                {user.type !== 'admin' && (
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button
-                        size="sm"
-                        className="bg-blue-900 text-white hover:bg-blue-800"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          Tem certeza que deseja excluir este usuário? Esta ação não pode ser desfeita
-                          e todos os agendamentos do usuário serão removidos.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                        <AlertDialogAction
-                          onClick={() => deleteUser(user.id)}
-                          className="bg-blue-900 text-white hover:bg-blue-800"
+                </TableCell>
+                <TableCell className="text-muted-foreground">{user.email}</TableCell>
+                <TableCell>
+                  <Badge
+                    className={
+                      user.type === 'admin'
+                        ? 'bg-blue-900 text-white hover:bg-blue-800'
+                        : 'bg-gray-200 text-gray-800'
+                    }
+                  >
+                    {user.type === 'admin' ? 'Administrador' : 'Usuário'}
+                  </Badge>
+                </TableCell>
+                <TableCell className="text-right">
+                  {user.type !== 'admin' && (
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          size="sm"
+                          variant="destructive"
                         >
-                          Confirmar
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Tem certeza que deseja excluir este usuário? Esta ação não pode ser desfeita
+                            e todos os agendamentos do usuário serão removidos.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() => deleteUser(user.id)}
+                            className="bg-blue-900 text-white hover:bg-blue-800"
+                          >
+                            Confirmar
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  )}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
       </div>
     </div>
   );

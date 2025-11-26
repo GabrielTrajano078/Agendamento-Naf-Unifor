@@ -136,7 +136,7 @@ export default function Login() {
       {/* Card de login/cadastro */}
       <Card className="w-full max-w-md shadow-lg border-none bg-white">
         <CardHeader>
-          <CardTitle className="text-2xl text-center text-[#0a2342]">Bem-vindo</CardTitle>
+          <CardTitle className="text-2xl text-center text-blue-900">Bem-vindo</CardTitle>
           <CardDescription className="text-center">
             Faça login ou crie sua conta para continuar
           </CardDescription>
@@ -181,15 +181,14 @@ export default function Login() {
                 <Button
                   type="button"
                   variant="link"
-                  className="px-0 text-sm text-[#0a2342]"
+                  className="px-0 text-sm text-blue-900 hover:text-blue-700"
                   onClick={handleRecoverPassword}
                 >
                   Esqueceu sua senha?
                 </Button>
                 <Button
                   type="submit"
-                  className="w-full text-white hover:opacity-90"
-                  style={{ backgroundColor: '#0a2342' }}
+                  className="w-full bg-blue-900 text-white hover:bg-blue-800"
                 >
                   Entrar
                 </Button>
@@ -259,8 +258,7 @@ export default function Login() {
                 </div>
                 <Button
                   type="submit"
-                  className="w-full text-white hover:opacity-90"
-                  style={{ backgroundColor: '#0a2342' }}
+                  className="w-full bg-blue-900 text-white hover:bg-blue-800"
                 >
                   Criar Conta
                 </Button>

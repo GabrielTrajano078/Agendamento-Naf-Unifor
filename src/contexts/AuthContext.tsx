@@ -19,8 +19,8 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Session timeout: 2 minutes
-const SESSION_TIMEOUT = 2 * 60 * 1000;
+// Session timeout: 10 minutes
+const SESSION_TIMEOUT = 10 * 60 * 1000;
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
