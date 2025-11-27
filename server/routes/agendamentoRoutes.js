@@ -8,7 +8,7 @@ import {
   atualizarAgendamento,
   deletarAgendamento,
   listarparametros
-} from '../controllers/agendamentoController.js';
+} from '../controllers/AgendamentoController.js';
 
 import {listarUsers} from '../controllers/UsersController.js';
  
