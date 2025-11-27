@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
+import { bookingsApi } from '@/lib/api';
 import { MessageCircle, MapPin } from 'lucide-react';
 
 interface AttendanceType {
@@ -27,6 +28,7 @@ export default function BookingForm({ onSuccess }: BookingFormProps) {
   const [date, setDate] = useState('');
   const [time, setTime] = useState('');
   const [availableTimes, setAvailableTimes] = useState<string[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     const savedTypes = localStorage.getItem('attendanceTypes');
@@ -45,24 +47,34 @@ export default function BookingForm({ onSuccess }: BookingFormProps) {
   }, []);
 
   useEffect(() => {
-    if (date) {
-      const times: string[] = [];
-      for (let hour = 9; hour < 18; hour++) {
-        times.push(`${hour.toString().padStart(2, '0')}:00`);
-        times.push(`${hour.toString().padStart(2, '0')}:30`);
+    const loadAvailableTimes = async () => {
+      if (date) {
+        const times: string[] = [];
+        for (let hour = 9; hour < 18; hour++) {
+          times.push(`${hour.toString().padStart(2, '0')}:00`);
+          times.push(`${hour.toString().padStart(2, '0')}:30`);
+        }
+
+        try {
+          // Busca agendamentos do backend
+          const bookings = await bookingsApi.getAll();
+          const bookedTimes = bookings
+            .filter((b: any) => b.data === date && b.status !== 'cancelled')
+            .map((b: any) => b.hora);
+
+          const available = times.filter(t => !bookedTimes.includes(t));
+          setAvailableTimes(available);
+        } catch (error) {
+          // Se falhar, usa todos os horários
+          setAvailableTimes(times);
+        }
       }
+    };
 
-      const bookings = JSON.parse(localStorage.getItem('bookings') || '[]');
-      const bookedTimes = bookings
-        .filter((b: any) => b.date === date && b.status !== 'cancelled')
-        .map((b: any) => b.time);
-
-      const available = times.filter(t => !bookedTimes.includes(t));
-      setAvailableTimes(available);
-    }
+    loadAvailableTimes();
   }, [date]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!selectedType || !date || !time || !attendanceMode) {
@@ -74,62 +86,50 @@ export default function BookingForm({ onSuccess }: BookingFormProps) {
       return;
     }
 
-    const bookings = JSON.parse(localStorage.getItem('bookings') || '[]');
-    const conflict = bookings.find(
-      (b: any) => b.date === date && b.time === time && b.status !== 'cancelled'
-    );
+    setIsLoading(true);
 
-    if (conflict) {
+    try {
+      const attendanceType = attendanceTypes.find(t => t.id === selectedType);
+      const servicoPrestado = `${attendanceType?.name} - ${attendanceMode === 'presencial' ? 'Presencial' : 'WhatsApp'}`;
+
+      // Cria agendamento no backend
+      await bookingsApi.create({
+        data: date,
+        hora: time,
+        status: 'pending',
+        usuarioId: user?.id || '',
+        name: user?.name || '',
+        servicoPrestado,
+      });
+
+      const modeText = attendanceMode === 'presencial' ? 'presencial' : 'via WhatsApp';
       toast({
-        title: 'Conflito de Horário',
-        description: 'Este horário já está reservado. Por favor, escolha outro.',
+        title: 'Agendamento Realizado!',
+        description: `Seu atendimento ${modeText} foi confirmado com sucesso`,
+      });
+
+      setTimeout(() => {
+        toast({
+          title: 'E-mail de Confirmação Enviado',
+          description: 'Verifique sua caixa de entrada',
+        });
+      }, 1000);
+
+      setSelectedType('');
+      setAttendanceMode('presencial');
+      setDate('');
+      setTime('');
+
+      if (onSuccess) onSuccess();
+    } catch (error) {
+      toast({
+        title: 'Erro',
+        description: 'Não foi possível criar o agendamento. Tente novamente.',
         variant: 'destructive',
       });
-      return;
+    } finally {
+      setIsLoading(false);
     }
-
-    const attendanceType = attendanceTypes.find(t => t.id === selectedType);
-    const newBooking = {
-      id: `booking-${Date.now()}`,
-      userId: user?.id,
-      userName: user?.name,
-      userEmail: user?.email,
-      attendanceTypeId: selectedType,
-      attendanceTypeName: attendanceType?.name,
-      attendanceMode,
-      date,
-      time,
-      status: 'pending',
-      createdAt: new Date().toISOString(),
-      history: [{
-        action: 'created',
-        timestamp: new Date().toISOString(),
-        by: user?.name
-      }]
-    };
-
-    bookings.push(newBooking);
-    localStorage.setItem('bookings', JSON.stringify(bookings));
-
-    const modeText = attendanceMode === 'presencial' ? 'presencial' : 'via WhatsApp';
-    toast({
-      title: 'Agendamento Realizado!',
-      description: `Seu atendimento ${modeText} foi confirmado com sucesso`,
-    });
-
-    setTimeout(() => {
-      toast({
-        title: 'E-mail de Confirmação Enviado',
-        description: 'Verifique sua caixa de entrada',
-      });
-    }, 1000);
-
-    setSelectedType('');
-    setAttendanceMode('presencial');
-    setDate('');
-    setTime('');
-
-    if (onSuccess) onSuccess();
   };
 
   return (
@@ -221,8 +221,9 @@ export default function BookingForm({ onSuccess }: BookingFormProps) {
           <Button
             type="submit"
             className="w-full bg-blue-900 text-white hover:bg-blue-800"
+            disabled={isLoading}
           >
-            Confirmar Agendamento
+            {isLoading ? 'Aguarde...' : 'Confirmar Agendamento'}
           </Button>
         </form>
       </CardContent>

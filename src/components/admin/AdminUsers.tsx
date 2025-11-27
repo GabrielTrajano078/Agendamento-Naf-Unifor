@@ -3,72 +3,57 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from '@/hooks/use-toast';
-import { Trash2, UserCircle } from 'lucide-react';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
+import { authApi } from '@/lib/api';
+import { UserCircle } from 'lucide-react';
 
 interface User {
-  id: string;
-  name: string;
+  _id: string;
+  nome: string;
   email: string;
   type: 'user' | 'admin';
+  ativo?: boolean;
 }
 
 export default function AdminUsers() {
   const [users, setUsers] = useState<User[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     loadUsers();
   }, []);
 
-  const loadUsers = () => {
-    const saved = localStorage.getItem('users');
-    if (saved) {
-      setUsers(JSON.parse(saved));
-    }
-  };
-
-  const deleteUser = (userId: string) => {
-    const user = users.find((u) => u.id === userId);
-    
-    if (user?.type === 'admin') {
+  const loadUsers = async () => {
+    try {
+      const data = await authApi.getUsers();
+      setUsers(data);
+    } catch (error) {
+      console.error('Erro ao carregar usuários:', error);
       toast({
         title: 'Erro',
-        description: 'Não é possível excluir usuários administradores',
+        description: 'Não foi possível carregar os usuários',
         variant: 'destructive',
       });
-      return;
+    } finally {
+      setIsLoading(false);
     }
-
-    const updated = users.filter((u) => u.id !== userId);
-    setUsers(updated);
-    localStorage.setItem('users', JSON.stringify(updated));
-
-    // Também remove todos os agendamentos do usuário
-    const bookings = JSON.parse(localStorage.getItem('bookings') || '[]');
-    const updatedBookings = bookings.filter((b: any) => b.userId !== userId);
-    localStorage.setItem('bookings', JSON.stringify(updatedBookings));
-
-    toast({
-      title: 'Usuário excluído',
-      description: 'O usuário e seus agendamentos foram removidos',
-    });
   };
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h2 className="text-3xl font-bold text-foreground">Usuários</h2>
+          <p className="text-muted-foreground">Carregando...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
       <div>
         <h2 className="text-3xl font-bold text-foreground">Usuários</h2>
-        <p className="text-muted-foreground">Gerencie os usuários do sistema</p>
+        <p className="text-muted-foreground">Visualize os usuários do sistema</p>
       </div>
 
       <div className="rounded-md border">
@@ -78,18 +63,18 @@ export default function AdminUsers() {
               <TableHead>Usuário</TableHead>
               <TableHead>E-mail</TableHead>
               <TableHead>Tipo</TableHead>
-              <TableHead className="text-right">Ações</TableHead>
+              <TableHead>Status</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {users.map((user) => (
-              <TableRow key={user.id}>
+              <TableRow key={user._id}>
                 <TableCell>
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-full bg-blue-900/10 flex items-center justify-center">
                       <UserCircle className="w-5 h-5 text-blue-900" />
                     </div>
-                    <span className="font-medium">{user.name}</span>
+                    <span className="font-medium">{user.nome}</span>
                   </div>
                 </TableCell>
                 <TableCell className="text-muted-foreground">{user.email}</TableCell>
@@ -104,37 +89,16 @@ export default function AdminUsers() {
                     {user.type === 'admin' ? 'Administrador' : 'Usuário'}
                   </Badge>
                 </TableCell>
-                <TableCell className="text-right">
-                  {user.type !== 'admin' && (
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            Tem certeza que deseja excluir este usuário? Esta ação não pode ser desfeita
-                            e todos os agendamentos do usuário serão removidos.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                          <AlertDialogAction
-                            onClick={() => deleteUser(user.id)}
-                            className="bg-blue-900 text-white hover:bg-blue-800"
-                          >
-                            Confirmar
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  )}
+                <TableCell>
+                  <Badge
+                    className={
+                      user.ativo !== false
+                        ? 'bg-green-100 text-green-800'
+                        : 'bg-red-100 text-red-800'
+                    }
+                  >
+                    {user.ativo !== false ? 'Ativo' : 'Inativo'}
+                  </Badge>
                 </TableCell>
               </TableRow>
             ))}

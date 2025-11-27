@@ -18,25 +18,17 @@ import {
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from '@/hooks/use-toast';
-import { Calendar, Clock, Search, Download, Edit, X, History, MessageCircle, MapPin } from 'lucide-react';
+import { bookingsApi } from '@/lib/api';
+import { Calendar, Clock, Search, Download, Edit, X } from 'lucide-react';
 
 interface Booking {
-  id: string;
-  userId: string;
-  userName: string;
-  userEmail: string;
-  attendanceTypeId: string;
-  attendanceTypeName: string;
-  attendanceMode: 'presencial' | 'whatsapp';
-  date: string;
-  time: string;
-  status: 'pending' | 'confirmed' | 'completed' | 'cancelled';
-  createdAt: string;
-  history: Array<{
-    action: string;
-    timestamp: string;
-    by: string;
-  }>;
+  _id: string;
+  data: string;
+  hora: string;
+  status: string;
+  usuarioId: string;
+  name: string;
+  servicoPrestado: string;
 }
 
 export default function AdminBookings() {
@@ -45,7 +37,7 @@ export default function AdminBookings() {
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [editingBooking, setEditingBooking] = useState<Booking | null>(null);
-  const [showHistory, setShowHistory] = useState<Booking | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const itemsPerPage = 5;
 
   useEffect(() => {
@@ -56,10 +48,19 @@ export default function AdminBookings() {
     filterBookings();
   }, [searchTerm, bookings]);
 
-  const loadBookings = () => {
-    const saved = localStorage.getItem('bookings');
-    if (saved) {
-      setBookings(JSON.parse(saved));
+  const loadBookings = async () => {
+    try {
+      const data = await bookingsApi.getAll();
+      setBookings(data);
+    } catch (error) {
+      console.error('Erro ao carregar agendamentos:', error);
+      toast({
+        title: 'Erro',
+        description: 'Não foi possível carregar os agendamentos',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -71,101 +72,100 @@ export default function AdminBookings() {
 
     const filtered = bookings.filter(
       (b) =>
-        b.userName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        b.attendanceTypeName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        b.date.includes(searchTerm)
+        b.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        b.servicoPrestado.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        b.data.includes(searchTerm)
     );
     setFilteredBookings(filtered);
     setCurrentPage(1);
   };
 
-  const updateBookingStatus = (bookingId: string, newStatus: string) => {
-    const updated = bookings.map((b) => {
-      if (b.id === bookingId) {
-        return {
-          ...b,
-          status: newStatus as any,
-          history: [
-            ...b.history,
-            {
-              action: `Status alterado para ${newStatus}`,
-              timestamp: new Date().toISOString(),
-              by: 'Admin'
-            }
-          ]
-        };
-      }
-      return b;
-    });
+  const updateBookingStatus = async (bookingId: string, newStatus: string) => {
+    try {
+      await bookingsApi.update(bookingId, { status: newStatus });
+      
+      const updated = bookings.map((b) => {
+        if (b._id === bookingId) {
+          return { ...b, status: newStatus };
+        }
+        return b;
+      });
 
-    setBookings(updated);
-    localStorage.setItem('bookings', JSON.stringify(updated));
-    toast({
-      title: 'Status atualizado',
-      description: 'O status do agendamento foi alterado com sucesso',
-    });
+      setBookings(updated);
+      toast({
+        title: 'Status atualizado',
+        description: 'O status do agendamento foi alterado com sucesso',
+      });
+    } catch (error) {
+      toast({
+        title: 'Erro',
+        description: 'Não foi possível atualizar o status',
+        variant: 'destructive',
+      });
+    }
   };
 
   const cancelBooking = (bookingId: string) => {
     updateBookingStatus(bookingId, 'cancelled');
   };
 
-  const deleteBooking = (bookingId: string) => {
-    const updated = bookings.filter((b) => b.id !== bookingId);
-    setBookings(updated);
-    localStorage.setItem('bookings', JSON.stringify(updated));
-    toast({
-      title: 'Agendamento excluído',
-      description: 'O agendamento foi removido permanentemente',
-    });
-  };
-
-  const handleCancelOrDelete = (booking: Booking) => {
-    if (booking.status === 'cancelled') {
-      deleteBooking(booking.id);
-    } else {
-      cancelBooking(booking.id);
+  const deleteBooking = async (bookingId: string) => {
+    try {
+      await bookingsApi.delete(bookingId);
+      const updated = bookings.filter((b) => b._id !== bookingId);
+      setBookings(updated);
+      toast({
+        title: 'Agendamento excluído',
+        description: 'O agendamento foi removido permanentemente',
+      });
+    } catch (error) {
+      toast({
+        title: 'Erro',
+        description: 'Não foi possível excluir o agendamento',
+        variant: 'destructive',
+      });
     }
   };
 
-  const saveEditedBooking = () => {
+  const saveEditedBooking = async () => {
     if (!editingBooking) return;
 
-    const updated = bookings.map((b) => {
-      if (b.id === editingBooking.id) {
-        return {
-          ...editingBooking,
-          history: [
-            ...b.history,
-            {
-              action: 'Agendamento editado',
-              timestamp: new Date().toISOString(),
-              by: 'Admin'
-            }
-          ]
-        };
-      }
-      return b;
-    });
+    try {
+      await bookingsApi.update(editingBooking._id, {
+        data: editingBooking.data,
+        hora: editingBooking.hora,
+        status: editingBooking.status,
+      });
 
-    setBookings(updated);
-    localStorage.setItem('bookings', JSON.stringify(updated));
-    setEditingBooking(null);
-    toast({
-      title: 'Agendamento atualizado',
-      description: 'As alterações foram salvas com sucesso',
-    });
+      const updated = bookings.map((b) => {
+        if (b._id === editingBooking._id) {
+          return editingBooking;
+        }
+        return b;
+      });
+
+      setBookings(updated);
+      setEditingBooking(null);
+      toast({
+        title: 'Agendamento atualizado',
+        description: 'As alterações foram salvas com sucesso',
+      });
+    } catch (error) {
+      toast({
+        title: 'Erro',
+        description: 'Não foi possível atualizar o agendamento',
+        variant: 'destructive',
+      });
+    }
   };
 
   const exportToCSV = () => {
-    const headers = ['Cliente', 'E-mail', 'Tipo', 'Modalidade', 'Data', 'Horário', 'Status'];
+    const headers = ['Cliente', 'Serviço', 'Data', 'Horário', 'Status'];
     const rows = bookings.map((b) => [
-      b.userName,
-      b.userEmail,
-      b.attendanceTypeName,
-      b.attendanceMode === 'presencial' ? 'Presencial' : 'WhatsApp',
-      b.date,
-      b.time,
+      b.name,
+      b.servicoPrestado,
+      b.data,
+      b.hora,
       b.status
     ]);
 
@@ -192,7 +192,9 @@ export default function AdminBookings() {
       pending: { color: 'bg-blue-100 text-blue-800 hover:bg-blue-200 transition-colors cursor-default', label: 'Pendente' },
       confirmed: { color: 'bg-blue-200 text-blue-900 hover:bg-blue-300 transition-colors cursor-default', label: 'Confirmado' },
       completed: { color: 'bg-blue-300 text-blue-900 hover:bg-blue-400 transition-colors cursor-default', label: 'Concluído' },
-      cancelled: { color: 'bg-red-100 text-red-700 hover:bg-red-200 transition-colors cursor-default', label: 'Cancelado' }
+      cancelled: { color: 'bg-red-100 text-red-700 hover:bg-red-200 transition-colors cursor-default', label: 'Cancelado' },
+      ativo: { color: 'bg-blue-200 text-blue-900 hover:bg-blue-300 transition-colors cursor-default', label: 'Ativo' },
+      concluido: { color: 'bg-blue-300 text-blue-900 hover:bg-blue-400 transition-colors cursor-default', label: 'Concluído' },
     };
 
     const config = variants[status] || variants.pending;
@@ -215,6 +217,17 @@ export default function AdminBookings() {
 
   const totalPages = Math.ceil(filteredBookings.length / itemsPerPage);
 
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h2 className="text-3xl font-bold text-foreground">Agendamentos</h2>
+          <p className="text-muted-foreground">Carregando...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -232,7 +245,7 @@ export default function AdminBookings() {
         <div className="relative flex-1">
           <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Buscar por nome, tipo ou data..."
+            placeholder="Buscar por nome, serviço ou data..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-9"
@@ -245,7 +258,7 @@ export default function AdminBookings() {
           <TableHeader>
             <TableRow>
               <TableHead>Cliente</TableHead>
-              <TableHead>Tipo</TableHead>
+              <TableHead>Serviço</TableHead>
               <TableHead>Data/Hora</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="text-right">Ações</TableHead>
@@ -253,38 +266,22 @@ export default function AdminBookings() {
           </TableHeader>
           <TableBody>
             {paginatedBookings.map((booking) => (
-              <TableRow key={booking.id}>
+              <TableRow key={booking._id}>
                 <TableCell>
-                  <div>
-                    <p className="font-medium">{booking.userName}</p>
-                    <p className="text-sm text-muted-foreground">{booking.userEmail}</p>
-                  </div>
+                  <p className="font-medium">{booking.name}</p>
                 </TableCell>
                 <TableCell>
-                  <div className="flex flex-col gap-1">
-                    <span className="font-medium">{booking.attendanceTypeName}</span>
-                    {booking.attendanceMode === 'presencial' ? (
-                      <Badge className="w-fit bg-blue-100 text-blue-900 border border-blue-300 gap-1 hover:bg-blue-200 transition-colors cursor-default">
-                        <MapPin className="w-3 h-3" />
-                        Presencial
-                      </Badge>
-                    ) : (
-                      <Badge className="w-fit bg-blue-100 text-blue-900 border border-blue-300 gap-1 hover:bg-blue-200 transition-colors cursor-default">
-                        <MessageCircle className="w-3 h-3" />
-                        WhatsApp
-                      </Badge>
-                    )}
-                  </div>
+                  <span className="font-medium">{booking.servicoPrestado}</span>
                 </TableCell>
                 <TableCell>
                   <div className="flex flex-col gap-1 text-sm text-muted-foreground">
                     <div className="flex items-center gap-1">
                       <Calendar className="w-4 h-4 text-blue-900" />
-                      <span>{formatDate(booking.date)}</span>
+                      <span>{formatDate(booking.data)}</span>
                     </div>
                     <div className="flex items-center gap-1">
                       <Clock className="w-4 h-4 text-blue-900" />
-                      <span>{booking.time}</span>
+                      <span>{booking.hora}</span>
                     </div>
                   </div>
                 </TableCell>
@@ -293,7 +290,7 @@ export default function AdminBookings() {
                     {getStatusBadge(booking.status)}
                     <Select
                       value={booking.status}
-                      onValueChange={(value) => updateBookingStatus(booking.id, value)}
+                      onValueChange={(value) => updateBookingStatus(booking._id, value)}
                     >
                       <SelectTrigger className="w-32 h-8 text-xs border-blue-900 text-blue-900">
                         <SelectValue />
@@ -309,36 +306,6 @@ export default function AdminBookings() {
                 </TableCell>
                 <TableCell className="text-right">
                   <div className="flex justify-end gap-2">
-                    <Dialog>
-                      <DialogTrigger asChild>
-                        <Button
-                          className="bg-blue-900 text-white hover:bg-blue-800"
-                          size="sm"
-                          onClick={() => setShowHistory(booking)}
-                        >
-                          <History className="h-4 w-4" />
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent>
-                        <DialogHeader>
-                          <DialogTitle>Histórico de Alterações</DialogTitle>
-                          <DialogDescription>
-                            Todas as modificações deste agendamento
-                          </DialogDescription>
-                        </DialogHeader>
-                        <div className="space-y-3">
-                          {booking.history.map((entry, idx) => (
-                            <div key={idx} className="border-l-2 border-blue-900 pl-4">
-                              <p className="text-sm font-medium">{entry.action}</p>
-                              <p className="text-xs text-muted-foreground">
-                                {new Date(entry.timestamp).toLocaleString('pt-BR')} - {entry.by}
-                              </p>
-                            </div>
-                          ))}
-                        </div>
-                      </DialogContent>
-                    </Dialog>
-
                     <Dialog>
                       <DialogTrigger asChild>
                         <Button
@@ -362,9 +329,9 @@ export default function AdminBookings() {
                               <Label>Data</Label>
                               <Input
                                 type="date"
-                                value={editingBooking.date}
+                                value={editingBooking.data}
                                 onChange={(e) =>
-                                  setEditingBooking({ ...editingBooking, date: e.target.value })
+                                  setEditingBooking({ ...editingBooking, data: e.target.value })
                                 }
                               />
                             </div>
@@ -372,9 +339,9 @@ export default function AdminBookings() {
                               <Label>Horário</Label>
                               <Input
                                 type="time"
-                                value={editingBooking.time}
+                                value={editingBooking.hora}
                                 onChange={(e) =>
-                                  setEditingBooking({ ...editingBooking, time: e.target.value })
+                                  setEditingBooking({ ...editingBooking, hora: e.target.value })
                                 }
                               />
                             </div>
@@ -383,7 +350,7 @@ export default function AdminBookings() {
                               <Select
                                 value={editingBooking.status}
                                 onValueChange={(value) =>
-                                  setEditingBooking({ ...editingBooking, status: value as any })
+                                  setEditingBooking({ ...editingBooking, status: value })
                                 }
                               >
                                 <SelectTrigger>
@@ -426,7 +393,7 @@ export default function AdminBookings() {
                           <AlertDialogFooter>
                             <AlertDialogCancel>Não</AlertDialogCancel>
                             <AlertDialogAction
-                              onClick={() => deleteBooking(booking.id)}
+                              onClick={() => deleteBooking(booking._id)}
                               className="bg-red-600 text-white hover:bg-red-700"
                             >
                               Sim, excluir
@@ -438,7 +405,7 @@ export default function AdminBookings() {
                       <Button
                         variant="destructive"
                         size="sm"
-                        onClick={() => cancelBooking(booking.id)}
+                        onClick={() => cancelBooking(booking._id)}
                         title="Cancelar agendamento"
                       >
                         <X className="h-4 w-4" />

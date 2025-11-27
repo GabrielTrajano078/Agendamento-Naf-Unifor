@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from '@/hooks/use-toast';
+import { authApi } from '@/lib/api';
 
 interface User {
   id: string;
@@ -27,24 +28,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
   const [lastActivity, setLastActivity] = useState(Date.now());
 
-  // Initialize users in localStorage if not exists
+  // Check for existing session on load
   useEffect(() => {
-    if (!localStorage.getItem('users')) {
-      const defaultUsers = [
-        {
-          id: 'admin-1',
-          name: 'Administrador',
-          email: 'admin@admin.com',
-          password: '1234',
-          type: 'admin'
-        }
-      ];
-      localStorage.setItem('users', JSON.stringify(defaultUsers));
-    }
-
-    // Check for existing session
     const savedUser = localStorage.getItem('currentUser');
-    if (savedUser) {
+    const token = localStorage.getItem('token');
+    
+    if (savedUser && token) {
       setUser(JSON.parse(savedUser));
     }
   }, []);
@@ -83,47 +72,45 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = async (email: string, password: string): Promise<boolean> => {
-    const users = JSON.parse(localStorage.getItem('users') || '[]');
-    const foundUser = users.find((u: any) => u.email === email && u.password === password);
-
-    if (foundUser) {
+    try {
+      const response = await authApi.login(email, password);
+      
+      // Salva o token
+      localStorage.setItem('token', response.token);
+      
+      // Salva os dados do usuário
       const userSession = {
-        id: foundUser.id,
-        name: foundUser.name,
-        email: foundUser.email,
-        type: foundUser.type
+        id: response.user.id,
+        name: response.user.name,
+        email: response.user.email,
+        type: response.user.type
       };
+      
       setUser(userSession);
       localStorage.setItem('currentUser', JSON.stringify(userSession));
       setLastActivity(Date.now());
+      
       return true;
+    } catch (error) {
+      console.error('Erro no login:', error);
+      return false;
     }
-    return false;
   };
 
   const register = async (name: string, email: string, password: string): Promise<boolean> => {
-    const users = JSON.parse(localStorage.getItem('users') || '[]');
-    
-    if (users.find((u: any) => u.email === email)) {
+    try {
+      await authApi.register(name, email, password);
+      return true;
+    } catch (error) {
+      console.error('Erro no registro:', error);
       return false;
     }
-
-    const newUser = {
-      id: `user-${Date.now()}`,
-      name,
-      email,
-      password,
-      type: 'user'
-    };
-
-    users.push(newUser);
-    localStorage.setItem('users', JSON.stringify(users));
-    return true;
   };
 
   const logout = () => {
     setUser(null);
     localStorage.removeItem('currentUser');
+    localStorage.removeItem('token');
     navigate('/');
   };
 
